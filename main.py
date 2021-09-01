@@ -1,90 +1,17 @@
-from scripts.dupl_image_finder import *
 import subprocess
-from subprocess import check_output
-from tqdm import tqdm
+subprocess.run('pip install -r requirements.txt', shell=True, capture_output=True)
+from scripts.dupl_image_finder import *
 import os
 import string
 import os.path
+import random
+import argparse
+from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import cv2 as cv
 import shutil
 from PIL import Image, ExifTags
-import random
-import argparse
-import platform
-import pkg_resources as pkg
-from pathlib import Path
-
-
-def emojis(str=''):
-    # Return platform-dependent emoji-safe version of string
-    return str.encode().decode('ascii', 'ignore') if platform.system() == 'Windows' else str
-
-
-def check_online():
-    # Check internet connectivity
-    import socket
-    try:
-        socket.create_connection(("1.1.1.1", 443), 5)  # check host accessibility
-        return True
-    except OSError:
-        return False
-
-
-def check_version(current='0.0.0', minimum='0.0.0', name='version ', pinned=False):
-    # Check version vs. required version
-    current, minimum = (pkg.parse_version(x) for x in (current, minimum))
-    result = (current == minimum) if pinned else (current >= minimum)
-    assert result, f'{name}{minimum} required by YOLOv5, but {name}{current} is currently installed'
-
-
-def check_python(minimum='3.6.2'):
-    # Check current python version vs. required python version
-    check_version(platform.python_version(), minimum, name='Python ')
-
-
-def try_except(func):
-    # try-except function. Usage: @try_except decorator
-    def handler(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except Exception as e:
-            print(e)
-
-    return handler
-
-
-@try_except
-def check_requirements(requirements='requirements.txt', exclude=()):
-    # Check installed dependencies meet requirements (pass *.txt file or list of packages)
-    prefix = colorstr('red', 'bold', 'requirements:')
-    check_python()  # check python version
-    if isinstance(requirements, (str, Path)):  # requirements.txt file
-        file = Path(requirements)
-        assert file.exists(), f"{prefix} {file.resolve()} not found, check failed."
-        requirements = [f'{x.name}{x.specifier}' for x in pkg.parse_requirements(file.open()) if x.name not in exclude]
-    else:  # list or tuple of packages
-        requirements = [x for x in requirements if x not in exclude]
-
-    n = 0  # number of packages updates
-    for r in requirements:
-        try:
-            pkg.require(r)
-        except Exception as e:  # DistributionNotFound or VersionConflict if requirements not met
-            print(f"{prefix} {r} not found and is required by YOLOv5, attempting auto-update...")
-            try:
-                assert check_online(), f"'pip install {r}' skipped (offline)"
-                print(check_output(f"pip install '{r}'", shell=True).decode())
-                n += 1
-            except Exception as e:
-                print(f'{prefix} {e}')
-
-    if n:  # if packages updated
-        source = file.resolve() if 'file' in locals() else requirements
-        s = f"{prefix} {n} package{'s' * (n > 1)} updated per {source}\n" \
-            f"{prefix} ⚠️ {colorstr('bold', 'Restart runtime or rerun command for updates to take effect')}\n"
-        print(emojis(s))
 
 
 def colorstr(*input):
@@ -675,7 +602,6 @@ def get_applicable_csv(type_data):
 
 def main(opt):
     print(colorstr('Yolov5 Dataset Builder: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
-    check_requirements()
     run(**vars(opt))
 
 

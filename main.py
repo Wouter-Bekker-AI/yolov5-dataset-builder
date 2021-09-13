@@ -383,7 +383,7 @@ def label_images(images_folder, labels_folder, labeled_images_folder):
             os.chdir(basedir)
 
 
-def find(file):
+def find(file):  # returns the path to the file
     for root, dirs, files in os.walk('.'):
         if file in files:
             return os.path.join(root, file)
@@ -514,42 +514,27 @@ def setup(classes, verbose=False):
     if not os.path.isdir('images'):
         os.mkdir('images')
 
+    subset_list = ['test', 'validation', 'train']  # list of subsets that oidv6 creates
+
     if os.path.isdir('OIDv6'):
-        if os.path.isdir('OIDv6/test'):
-            for cls in os.listdir('OIDv6/test'):
-                class_names_list.append(string.capwords(cls))
-        if os.path.isdir('OIDv6/validation'):
-            for cls in os.listdir('OIDv6/validation'):
-                class_names_list.append(string.capwords(cls))
-        if os.path.isdir('OIDv6/train'):
-            for cls in os.listdir('OIDv6/train'):
-                class_names_list.append(string.capwords(cls))
+        for subset in subset_list:
+            if os.path.isdir(f'OIDv6/{subset}'):
+                for cls in os.listdir(f'OIDv6/{subset}'):
+                    class_names_list.append(string.capwords(cls))
         class_names_list = list(set(class_names_list))
 
         if verbose:
             print(f'\nClass names list in setup is {class_names_list}')
 
         for cls in class_names_list:
-            if os.path.isdir(f'OIDv6/test/{cls}'):
-                for jpg in os.listdir(f'OIDv6/test/{cls}'):
-                    name, ext = os.path.splitext(jpg)
-                    path = f'OIDv6/test/{cls}/{jpg}'
-                    if ext == '.jpg':
-                        shutil.copy(path, f'images/{jpg}')
+            for subset in subset_list:
+                if os.path.isdir(f'OIDv6/{subset}/{cls.lower()}'):
+                    for jpg in os.listdir(f'OIDv6/{subset}/{cls.lower()}'):
+                        name, ext = os.path.splitext(jpg)
+                        path = f'OIDv6/{subset}/{cls.lower()}/{jpg}'
+                        if ext == '.jpg':
+                            shutil.copy(path, f'images/{jpg}')
 
-            if os.path.isdir(f'OIDv6/validation/{cls}'):
-                for jpg in os.listdir(f'OIDv6/validation/{cls}'):
-                    name, ext = os.path.splitext(jpg)
-                    path = f'OIDv6/validation/{cls}/{jpg}'
-                    if ext == '.jpg':
-                        shutil.copy(path, f'images/{jpg}')
-
-            if os.path.isdir(f'OIDv6/train/{cls}'):
-                for jpg in os.listdir(f'OIDv6/train/{cls}'):
-                    name, ext = os.path.splitext(jpg)
-                    path = f'OIDv6/train/{cls}/{jpg}'
-                    if ext == '.jpg':
-                        shutil.copy(path, f'images/{jpg}')
     else:
         print('Please import images into the images folder.')
         exit()
@@ -600,49 +585,53 @@ def get_applicable_csv(type_data):
     return test_csv_list
 
 
+def find_copy_files(files_list, copy_loc):  # takes list of file names, looks for them and copy to location if found
+    for file in files_list:
+        found_loc = find(file)
+        if found_loc:
+            shutil.copy(found_loc, copy_loc)
+
 def main(opt):
     print(colorstr('Yolov5 Dataset Builder: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
-    run(**vars(opt))
+    run(**vars(opt))  # run the program with options passed as arguments
 
 
-def run(classes,
-        dataset='dataset',
-        dataset_exists=False,
-        duplicates=False,
-        label_img=False,
+def run(classes,  # list if all the classes
+        dataset='dataset',  # name of the dataset
+        dataset_exists=False,  # if True then it will create a new folder for the dataset
+        duplicates=False,  # if True then checks for duplicates using the dupl_finder script
+        label_img=False,  #
         split_data=False,
         resize_img=0,
         verbose=False,
-        download=False,
+        no_download=False,
         type_data='train',
         limit=0):
 
     if not dataset_exists:
-        dataset = check_dataset(dataset)
+        dataset = check_dataset(dataset)  # Create a new dataset folder, example if dataset exists then it will create dataset1
     base_dir = os.getcwd()
 
-    csv_search_list = get_applicable_csv(type_data=type_data)
-    for csv in csv_search_list:
-        found_loc = find(csv)
-        if found_loc:
-            if not os.path.isdir(os.path.join(dataset, 'OIDv6/boxes')):
-                os.makedirs(os.path.join(dataset, 'OIDv6/boxes'))
-            shutil.copy(found_loc, os.path.join(dataset, 'OIDv6/boxes'))
+    csv_search_list = get_applicable_csv(type_data=type_data)  # only look for csv annotations of type data chosen
+    # copy that csv into the oidv6 boxes folder where iodv6 will look for it
+    if not os.path.isdir(os.path.join(dataset, 'OIDv6/boxes')):
+        os.makedirs(os.path.join(dataset, 'OIDv6/boxes'))
+    # search the entire directory for the annotation csv to not download again
+    find_copy_files(csv_search_list, os.path.join(dataset, 'OIDv6/boxes'))
 
-    annotations_search_list = ['class-descriptions-boxable.csv']
-    for csv in annotations_search_list:
-        found_loc = find(csv)
-        if found_loc:
-            if not os.path.isdir(os.path.join(dataset, 'OIDv6/metadata')):
-                os.makedirs(os.path.join(dataset, 'OIDv6/metadata'))
-            shutil.copy(found_loc, os.path.join(dataset, 'OIDv6/metadata'))
+    class_desc_search_list = ['class-descriptions-boxable.csv']  # look for the class description csv
+    # copy that csv into the oidv6 metadata folder where iodv6 will look for it
+    if not os.path.isdir(os.path.join(dataset, 'OIDv6/metadata')):
+        os.makedirs(os.path.join(dataset, 'OIDv6/metadata'))
+    # search the entire directory for the class description csv to not download again
+    find_copy_files(class_desc_search_list, os.path.join(dataset, 'OIDv6/metadata'))
 
     os.chdir(dataset)
 
     classes = ' '.join(classes)
     print(f'Currently working in {os.getcwd()}')
 
-    if download:
+    if not no_download:
         oidv6_string = f'oidv6 downloader --yes --no_clear_shell en' \
                        f' --type_data {type_data} --classes {classes} --limit {limit}'
         subprocess.run(oidv6_string, shell=True)
@@ -678,7 +667,7 @@ def parse_opt():
     parser.add_argument('--split_data', action='store_true', help='Split dataset into train, valid, test split.')
     parser.add_argument('--resize_img', type=int, default=0, help='Size in px to resize images to.')
     parser.add_argument('--verbose', action='store_true', help='Print out more info on every step.')
-    parser.add_argument('--download', action='store_true', help='Use the OIDv6 downloader to download images.')
+    parser.add_argument('--no_download', action='store_true', help='Do not use the OIDv6 downloader to download images.')
     parser.add_argument('--type_data', type=str, default='train', help='Download from subset [train, validation, test, all].')
     parser.add_argument('--limit', default=0, type=int, help='Limit the amount of images to download.')
     parser.add_argument('--classes', nargs='+', type=str, help='Path to classes.txt or list classes like "Cat Dog Ant".', required=True)
@@ -688,6 +677,6 @@ def parse_opt():
 
 if __name__ == '__main__':
     IMG_FORMATS = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng', 'webp', 'mpo']  # acceptable image suffixes
-    os.chdir('.')
+    os.chdir('.')  # change working directory to where the main.py file is
     opt = parse_opt()
     main(opt)

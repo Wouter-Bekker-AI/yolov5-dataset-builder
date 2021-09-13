@@ -10,7 +10,7 @@ python main.py --classes Cat Dog --limit 20 --type_data test --dataset MiniCatsD
 
 Arguments:
 
---dataset, default='dataset', help='Name of the dataset.'\n
+--dataset, default='dataset', help='Name of the dataset.'
 --dataset_exists, action='store_true', help='Save images to an existing dataset.'
 --duplicates, action='store_true', help='Check for duplicate images. Can be slow on big data.'
 --label_img, action='store_true', help='Create a separate folder and label the images.'
